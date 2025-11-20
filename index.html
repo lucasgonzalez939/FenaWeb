@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Fenaquistoscopio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LibGif for parsing GIF frames --><script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+
+        /* Toggle Switch Styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 22px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .2s;
+            transition: .2s;
+            border-radius: 22px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            -webkit-transition: .2s;
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+
+        input:focus + .toggle-slider {
+            box-shadow: 0 0 1px #3b82f6;
+        }
+
+        input:checked + .toggle-slider:before {
+            -webkit-transform: translateX(16px);
+            -ms-transform: translateX(16px);
+            transform: translateX(16px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 z-10 h-16">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">P</div>
+            <h1 class="text-base sm:text-lg font-semibold tracking-tight" data-i18n="title">Creador de Fenaquistoscopio</h1>
+        </div>
+        <div class="hidden lg:flex items-center gap-4">
+            <div class="text-xs sm:text-sm text-slate-500">
+                <span data-i18n="workflow">Subir GIF &rarr; Ajustar &rarr; Imprimir &rarr; Cortar Ranuras &rarr; Girar frente al Espejo</span>
+            </div>
+            <!-- Language Toggle -->
+            <button onclick="toggleLanguage()" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                <span id="langToggleText">EN</span>
+            </button>
+        </div>
+        <button onclick="downloadCanvas()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors shadow-sm" data-i18n="downloadBtn">
+            Descargar Disco
+        </button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar Controls -->
+        <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col overflow-y-auto flex-shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            <div class="p-5 space-y-6">
+
+                <!-- Upload -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-900 mb-2" data-i18n="sourceAnimation">Animación de Origen</label>
+                    <div class="relative border-2 border-dashed border-slate-300 rounded-lg p-4 hover:bg-slate-50 transition-colors text-center cursor-pointer" id="dropZone">
+                        <input type="file" id="fileInput" accept="image/gif" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        <div class="space-y-1">
+                            <svg class="mx-auto h-8 w-8 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="text-xs text-slate-500">
+                                <span class="font-medium text-blue-600" data-i18n="uploadGif">Haz clic para subir GIF</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hidden Img for Library Parsing -->
+                    <div id="gifParserContainer" style="width: 50px; height: 50px; overflow: hidden; opacity: 0.05; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 8px;">
+                        <img id="gifSource" rel:animated_src="" style="width: 50px; height: 50px; object-fit: contain;" />
+                    </div>
+                    <p id="statusText" class="text-xs text-slate-400 mt-2" data-i18n="noFile">Ningún archivo cargado.</p>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <!-- Disc Settings -->
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3" data-i18n="discGeometry">Geometría del Disco</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="frames">Cuadros (Ranuras)</span>
+                                <span id="val-slots">12</span>
+                            </div>
+                            <input type="range" id="input-slots" min="4" max="24" value="12" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="discColor">Color del Disco</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="setBg('#ffffff')" class="w-6 h-6 rounded-full border border-slate-300 bg-white"></button>
+                                <button onclick="setBg('#f1f5f9')" class="w-6 h-6 rounded-full border border-slate-300 bg-slate-100"></button>
+                                <button onclick="setBg('#fee2e2')" class="w-6 h-6 rounded-full border border-slate-300 bg-red-100"></button>
+                                <button onclick="setBg('#dbeafe')" class="w-6 h-6 rounded-full border border-slate-300 bg-blue-100"></button>
+                                <button onclick="setBg('#fef3c7')" class="w-6 h-6 rounded-full border border-slate-300 bg-amber-100"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Settings -->
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3" data-i18n="imageAdjustments">Ajustes de Imagen</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="framePreScale">Pre-Escala de Cuadros</span>
+                                <span id="val-frame-scale">100%</span>
+                            </div>
+                            <input type="range" id="input-frame-scale" min="10" max="300" step="10" value="100" class="w-full">
+                            <p class="text-[10px] text-slate-400 mt-1" data-i18n="framePreScaleDesc">Escala los cuadros del GIF antes de colocarlos en el disco.</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="imageScale">Escala de Imagen (en disco)</span>
+                                <span id="val-scale">0.8</span>
+                            </div>
+                            <input type="range" id="input-scale" min="0.1" max="3" step="0.1" value="0.8" class="w-full">
+                             <p class="text-[10px] text-slate-400 mt-1" data-i18n="imageScaleDesc">Escala el tamaño del cuadro ajustado en el disco.</p>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="distanceFromCenter">Distancia del Centro</span>
+                                <span id="val-radius">65%</span>
+                            </div>
+                            <input type="range" id="input-radius" min="10" max="90" value="65" class="w-full">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="rotation">Rotación</span>
+                                <span id="val-rotation">180°</span>
+                            </div>
+                            <input type="range" id="input-rotation" min="0" max="360" value="180" class="w-full">
+                        </div>
+                        
+                        <div>
+                             <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="sourceFrameOffset">Desplazamiento de Cuadro de Origen</span>
+                                <span id="val-offset">0</span>
+                            </div>
+                             <input type="range" id="input-offset" min="0" max="10" value="0" class="w-full">
+                             <p class="text-[10px] text-slate-400 mt-1" data-i18n="sourceFrameOffsetDesc">Desplaza qué cuadro inicia el bucle.</p>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm" data-i18n="grayscale">Escala de Grises</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="input-grayscale">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Slit Settings -->
+                 <div>
+                    <h3 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3" data-i18n="slitConfig">Configuración de Ranuras</h3>
+                     <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="slitWidth">Ancho de Ranura</span>
+                            </div>
+                            <input type="range" id="input-slit-width" min="1" max="20" value="5" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span data-i18n="slitLength">Largo de Ranura</span>
+                            </div>
+                            <input type="range" id="input-slit-length" min="5" max="40" value="20" class="w-full">
+                        </div>
+                     </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Main Canvas Area -->
+        <main class="flex-1 bg-slate-100 relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-hidden">
+            
+            <!-- View Toggle -->
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-lg border border-slate-200 p-1 flex text-xs sm:text-sm z-20">
+                <button onclick="setView('edit')" id="btn-edit" class="px-3 sm:px-4 py-1.5 rounded-full font-medium bg-blue-100 text-blue-700 transition-all" data-i18n="editDisc">Editar Disco</button>
+                <button onclick="setView('sim')" id="btn-sim" class="px-3 sm:px-4 py-1.5 rounded-full font-medium text-slate-600 hover:bg-slate-50 transition-all" data-i18n="simulateSpin">Simular Giro</button>
+            </div>
+
+            <!-- Editor View -->
+            <div id="view-edit" class="w-full h-full flex items-center justify-center">
+                <div class="relative shadow-xl rounded-full bg-white">
+                    <canvas id="discCanvas" width="800" height="800" class="max-w-full max-h-[70vh] sm:max-h-[80vh] w-auto h-auto rounded-full"></canvas>
+                    <!-- Center Cutout Marker (Visual Only) -->
+                    <div class="absolute top-1/2 left-1/2 w-2 h-2 bg-black rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none mix-blend-difference"></div>
+                </div>
+            </div>
+
+            <!-- Simulation View -->
+            <div id="view-sim" class="hidden w-full h-full flex-col items-center justify-center">
+                <div class="relative">
+                    <canvas id="simCanvas" width="500" height="500" class="rounded-full shadow-2xl border-4 border-slate-800 bg-slate-800 max-w-[90vw] max-h-[70vh] sm:max-h-[80vh] w-auto h-auto"></canvas>
+                    <div class="absolute top-0 left-0 w-full h-full rounded-full pointer-events-none" 
+                         style="background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.2) 100%);">
+                    </div>
+                </div>
+                <p class="mt-4 text-slate-500 text-xs sm:text-sm text-center px-4" data-i18n="simulateDesc">Esto simula mirar a través de las ranuras en un espejo.</p>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // --- Translations ---
+        const translations = {
+            es: {
+                title: "Creador de Fenaquistoscopio",
+                workflow: "Subir GIF → Ajustar → Imprimir → Cortar Ranuras → Girar frente al Espejo",
+                downloadBtn: "Descargar Disco",
+                sourceAnimation: "Animación de Origen",
+                uploadGif: "Haz clic para subir GIF",
+                noFile: "Ningún archivo cargado.",
+                discGeometry: "Geometría del Disco",
+                frames: "Cuadros (Ranuras)",
+                discColor: "Color del Disco",
+                imageAdjustments: "Ajustes de Imagen",
+                framePreScale: "Pre-Escala de Cuadros",
+                framePreScaleDesc: "Escala los cuadros del GIF antes de colocarlos en el disco.",
+                imageScale: "Escala de Imagen (en disco)",
+                imageScaleDesc: "Escala el tamaño del cuadro ajustado en el disco.",
+                distanceFromCenter: "Distancia del Centro",
+                rotation: "Rotación",
+                sourceFrameOffset: "Desplazamiento de Cuadro de Origen",
+                sourceFrameOffsetDesc: "Desplaza qué cuadro inicia el bucle.",
+                grayscale: "Escala de Grises",
+                slitConfig: "Configuración de Ranuras",
+                slitWidth: "Ancho de Ranura",
+                slitLength: "Largo de Ranura",
+                editDisc: "Editar Disco",
+                simulateSpin: "Simular Giro",
+                simulateDesc: "Esto simula mirar a través de las ranuras en un espejo.",
+                uploadGifAlert: "Por favor, sube un archivo GIF.",
+                uploadGifFirst: "¡Por favor, sube un GIF primero!",
+                parsingGif: "Analizando cuadros del GIF...",
+                loadedFrames: "Cargados {count} cuadros.",
+                uploadPlaceholder: "Sube un GIF para generar el disco"
+            },
+            en: {
+                title: "Phenakistoscope Creator",
+                workflow: "Upload GIF → Adjust → Print → Cut Slits → Spin in Mirror",
+                downloadBtn: "Download Disc",
+                sourceAnimation: "Source Animation",
+                uploadGif: "Click to upload GIF",
+                noFile: "No file loaded.",
+                discGeometry: "Disc Geometry",
+                frames: "Frames (Slots)",
+                discColor: "Disc Color",
+                imageAdjustments: "Image Adjustments",
+                framePreScale: "Frame Pre-Scale",
+                framePreScaleDesc: "Scale GIF frames before placing on disc.",
+                imageScale: "Image Scale (on disc)",
+                imageScaleDesc: "Scale adjusted frame size on disc.",
+                distanceFromCenter: "Distance from Center",
+                rotation: "Rotation",
+                sourceFrameOffset: "Source Frame Offset",
+                sourceFrameOffsetDesc: "Shift which frame starts the loop.",
+                grayscale: "Grayscale",
+                slitConfig: "Slit Config",
+                slitWidth: "Slit Width",
+                slitLength: "Slit Length",
+                editDisc: "Edit Disc",
+                simulateSpin: "Simulate Spin",
+                simulateDesc: "This simulates looking through the slits into a mirror.",
+                uploadGifAlert: "Please upload a GIF file.",
+                uploadGifFirst: "Please upload a GIF first!",
+                parsingGif: "Parsing GIF frames...",
+                loadedFrames: "Loaded {count} frames.",
+                uploadPlaceholder: "Upload a GIF to generate disc"
+            }
+        };
+
+        let currentLang = 'es'; // Default to Spanish
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'es' ? 'en' : 'es';
+            updateLanguage();
+        }
+
+        function updateLanguage() {
+            const langText = currentLang === 'es' ? 'EN' : 'ES';
+            document.getElementById('langToggleText').innerText = langText;
+            document.documentElement.lang = currentLang;
+            document.title = translations[currentLang].title;
+            
+            // Update all elements with data-i18n attribute
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) {
+                    if (el.tagName === 'INPUT' && el.type === 'button') {
+                        el.value = translations[currentLang][key];
+                    } else {
+                        el.textContent = translations[currentLang][key];
+                    }
+                }
+            });
+            
+            // Redraw canvas with new language
+            drawDisc();
+        }
+
+        // --- State Management ---
+        const state = {
+            gifObject: null,
+            originalFrames: [], // Raw frames from GIF
+            processedFrames: [], // Frames after resizing/grayscale
+            config: {
+                slots: 12,
+                frameScale: 100, // New: Scale of original frame before being drawn to disc
+                scale: 0.8,      // Scale of the *processed* frame on the disc
+                radiusPercent: 65,
+                rotation: 180,
+                offset: 0,
+                bgColor: '#ffffff',
+                slitWidth: 5,
+                slitLength: 20,
+                grayscale: false // New: Grayscale toggle
+            },
+            view: 'edit',
+            animationId: null
+        };
+
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const statusText = document.getElementById('statusText');
+        const discCanvas = document.getElementById('discCanvas');
+        const simCanvas = document.getElementById('simCanvas');
+        const ctxDisc = discCanvas.getContext('2d');
+        const ctxSim = simCanvas.getContext('2d');
+
+        // --- Initialization ---
+        
+        // Add Event Listeners to Controls
+        function bindControl(id, configKey, needsRedraw = true, displayId = null, suffix = '') {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.addEventListener('input', (e) => {
+                state.config[configKey] = parseFloat(e.target.value);
+                if(displayId) document.getElementById(displayId).innerText = e.target.value + suffix;
+                
+                if(configKey === 'frameScale' || configKey === 'grayscale') {
+                    // These require re-processing frames
+                    if(state.originalFrames.length > 0) processFrames();
+                } else if(needsRedraw) {
+                    drawDisc();
+                }
+            });
+        }
+
+        bindControl('input-slots', 'slots', true, 'val-slots');
+        bindControl('input-frame-scale', 'frameScale', false, 'val-frame-scale', '%'); // Does not immediately redraw disc
+        bindControl('input-scale', 'scale', true, 'val-scale');
+        bindControl('input-radius', 'radiusPercent', true, 'val-radius', '%');
+        bindControl('input-rotation', 'rotation', true, 'val-rotation', '°');
+        bindControl('input-offset', 'offset', true, 'val-offset');
+        bindControl('input-slit-width', 'slitWidth', true);
+        bindControl('input-slit-length', 'slitLength', true);
+
+        // Grayscale Toggle
+        const grayscaleInput = document.getElementById('input-grayscale');
+        if (grayscaleInput) {
+            grayscaleInput.addEventListener('change', (e) => {
+                state.config.grayscale = e.target.checked;
+                if (state.originalFrames.length > 0) {
+                    processFrames(); // Re-process frames with new grayscale setting
+                } else {
+                    drawDisc(); // Even without frames, might affect disc background/placeholders if that changes
+                }
+            });
+        }
+
+        function setBg(color) {
+            state.config.bgColor = color;
+            drawDisc();
+        }
+
+        function setView(viewName) {
+            state.view = viewName;
+            const editBtn = document.getElementById('btn-edit');
+            const simBtn = document.getElementById('btn-sim');
+            const editView = document.getElementById('view-edit');
+            const simView = document.getElementById('view-sim');
+
+            if (viewName === 'edit') {
+                editView.classList.remove('hidden');
+                simView.classList.add('hidden');
+                editBtn.classList.add('bg-blue-100', 'text-blue-700');
+                editBtn.classList.remove('text-slate-600', 'hover:bg-slate-50');
+                simBtn.classList.remove('bg-blue-100', 'text-blue-700');
+                simBtn.classList.add('text-slate-600', 'hover:bg-slate-50');
+                stopSimulation();
+            } else {
+                editView.classList.add('hidden');
+                simView.classList.remove('hidden');
+                simBtn.classList.add('bg-blue-100', 'text-blue-700');
+                simBtn.classList.remove('text-slate-600', 'hover:bg-slate-50');
+                editBtn.classList.remove('bg-blue-100', 'text-blue-700');
+                editBtn.classList.add('text-slate-600', 'hover:bg-slate-50');
+                startSimulation();
+            }
+        }
+
+        // --- File Handling ---
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.type !== 'image/gif') {
+                alert(translations[currentLang].uploadGifAlert);
+                return;
+            }
+            
+            loadGIF(file);
+        });
+
+        function loadGIF(file) {
+            statusText.innerText = translations[currentLang].parsingGif;
+            statusText.classList.remove("text-red-500");
+            statusText.classList.remove("text-green-600");
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Reset container
+                const container = document.getElementById('gifParserContainer');
+                container.innerHTML = '';
+                
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                // Required for LibGif
+                img.setAttribute('rel:animated_src', e.target.result);
+                img.setAttribute('rel:auto_play', '0');
+                img.style.width = '50px';
+                img.style.height = '50px';
+                img.style.objectFit = 'contain';
+                container.appendChild(img);
+
+                // Initialize SuperGif
+                const rub = new SuperGif({ gif: img } );
+                
+                rub.load(function() {
+                    state.gifObject = rub;
+                    extractOriginalFrames(rub);
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function extractOriginalFrames(rub) {
+            state.originalFrames = [];
+            const length = rub.get_length();
+            
+            for(let i = 0; i < length; i++) {
+                rub.move_to(i);
+                const frameCanvas = rub.get_canvas();
+                
+                const storedCanvas = document.createElement('canvas');
+                storedCanvas.width = frameCanvas.width;
+                storedCanvas.height = frameCanvas.height;
+                const ctx = storedCanvas.getContext('2d');
+                ctx.drawImage(frameCanvas, 0, 0);
+                
+                state.originalFrames.push(storedCanvas);
+            }
+
+            statusText.innerText = translations[currentLang].loadedFrames.replace('{count}', length);
+            statusText.classList.add("text-green-600");
+            
+            if(length >= 4 && length <= 24) {
+                state.config.slots = length;
+                document.getElementById('input-slots').value = length;
+                document.getElementById('val-slots').innerText = length;
+            }
+            
+            processFrames(); // Now process them
+        }
+
+        function processFrames() {
+            state.processedFrames = [];
+            const scaleFactor = state.config.frameScale / 100;
+            const grayscale = state.config.grayscale;
+
+            state.originalFrames.forEach(originalCanvas => {
+                const newWidth = originalCanvas.width * scaleFactor;
+                const newHeight = originalCanvas.height * scaleFactor;
+
+                const processedCanvas = document.createElement('canvas');
+                processedCanvas.width = newWidth;
+                processedCanvas.height = newHeight;
+                const ctx = processedCanvas.getContext('2d');
+
+                // Draw (and scale)
+                ctx.drawImage(originalCanvas, 0, 0, newWidth, newHeight);
+
+                // Apply grayscale if enabled
+                if (grayscale) {
+                    const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+                    const data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                        data[i] = avg;     // red
+                        data[i + 1] = avg; // green
+                        data[i + 2] = avg; // blue
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                }
+                state.processedFrames.push(processedCanvas);
+            });
+            drawDisc(); // Redraw disc after frames are processed
+        }
+
+
+        // --- Rendering Logic ---
+
+        function drawDisc() {
+            const { width, height } = discCanvas;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2;
+
+            // Clear
+            ctxDisc.clearRect(0, 0, width, height);
+
+            // 1. Draw Background Circle
+            ctxDisc.beginPath();
+            ctxDisc.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctxDisc.fillStyle = state.config.bgColor;
+            ctxDisc.fill();
+            ctxDisc.strokeStyle = '#e2e8f0';
+            ctxDisc.lineWidth = 2;
+            ctxDisc.stroke();
+
+            // 2. Draw Center Hole marker for perforation
+            // Outer circle (cutting guide)
+            ctxDisc.beginPath();
+            ctxDisc.arc(centerX, centerY, 15, 0, Math.PI * 2);
+            ctxDisc.strokeStyle = '#000000';
+            ctxDisc.lineWidth = 1;
+            ctxDisc.stroke();
+            
+            // Inner circle (smaller guide)
+            ctxDisc.beginPath();
+            ctxDisc.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctxDisc.strokeStyle = '#000000';
+            ctxDisc.lineWidth = 1;
+            ctxDisc.stroke();
+            
+            // Center dot
+            ctxDisc.beginPath();
+            ctxDisc.arc(centerX, centerY, 2, 0, Math.PI * 2);
+            ctxDisc.fillStyle = '#000000';
+            ctxDisc.fill();
+            
+            // Cross lines for precise centering
+            ctxDisc.strokeStyle = '#000000';
+            ctxDisc.lineWidth = 1;
+            ctxDisc.beginPath();
+            ctxDisc.moveTo(centerX - 20, centerY);
+            ctxDisc.lineTo(centerX + 20, centerY);
+            ctxDisc.moveTo(centerX, centerY - 20);
+            ctxDisc.lineTo(centerX, centerY + 20);
+            ctxDisc.stroke();
+
+            // 3. Draw Frames & Slits
+            const slots = state.config.slots;
+            const anglePerSlot = (Math.PI * 2) / slots;
+            const frames = state.processedFrames; // Use processed frames
+
+            if (frames.length === 0) {
+                // Placeholder text
+                ctxDisc.fillStyle = '#94a3b8';
+                ctxDisc.font = '20px sans-serif';
+                ctxDisc.textAlign = 'center';
+                ctxDisc.fillText(translations[currentLang].uploadPlaceholder, centerX, centerY + 40);
+                return;
+            }
+
+            for (let i = 0; i < slots; i++) {
+                ctxDisc.save();
+                
+                // Rotate to the center of the wedge
+                const angle = i * anglePerSlot;
+                ctxDisc.translate(centerX, centerY);
+                ctxDisc.rotate(angle);
+
+                // --- A. Draw Slit ---
+                // Slit is usually at the edge.
+                const slitW = state.config.slitWidth;
+                const slitL = state.config.slitLength * 4; // Multiplier for visibility
+                const slitStart = radius - slitL;
+
+                ctxDisc.fillStyle = '#000000';
+                // Align slit to the radial line
+                ctxDisc.fillRect(-slitW/2, slitStart, slitW, slitL);
+
+                // --- B. Draw Image ---
+                // We need to select the frame. 
+                // Logic: We map the slot index (0 to slots-1) to the frame index (0 to frames.length-1).
+                // We add offset to rotate the animation phase.
+                
+                const frameIndexRaw = Math.floor((i * (frames.length / slots)) + state.config.offset);
+                const frameIndex = frameIndexRaw % frames.length;
+                const img = frames[frameIndex];
+
+                if (img) {
+                    // Distance out from center
+                    const dist = (radius * state.config.radiusPercent) / 100;
+                    
+                    ctxDisc.translate(0, dist);
+                    
+                    // Scale and Rotation of the image itself
+                    const imgScale = state.config.scale;
+                    const imgRotRad = (state.config.rotation * Math.PI) / 180;
+
+                    ctxDisc.rotate(imgRotRad);
+                    ctxDisc.scale(imgScale, imgScale);
+
+                    // Draw centered on origin
+                    ctxDisc.drawImage(img, -img.width/2, -img.height/2);
+                }
+
+                ctxDisc.restore();
+            }
+        }
+
+        // --- Simulation Logic ---
+        
+        function startSimulation() {
+            if (state.animationId) cancelAnimationFrame(state.animationId);
+            
+            let rotation = 0;
+            
+            // Pre-render the disc to an offscreen canvas for performance
+            // We need to redraw this if frame settings change while in sim view
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = 800;
+            offCanvas.height = 800;
+            const offCtx = offCanvas.getContext('2d');
+            
+            const renderOffscreenDisc = () => {
+                // Temporarily store original canvas dimensions
+                const originalWidth = discCanvas.width;
+                const originalHeight = discCanvas.height;
+
+                // Ensure discCanvas is at its full drawing size before drawing to offscreen
+                discCanvas.width = 800; 
+                discCanvas.height = 800;
+                drawDisc(); // Redraw the disc to the main canvas first
+                
+                offCtx.clearRect(0,0, offCanvas.width, offCanvas.height);
+                offCtx.drawImage(discCanvas, 0, 0);
+
+                // Restore original canvas dimensions if they were changed for display
+                discCanvas.width = originalWidth; 
+                discCanvas.height = originalHeight;
+                drawDisc(); // Redraw disc to display canvas
+            };
+
+            renderOffscreenDisc(); // Initial render
+
+            const fps = 12; // Animation speed
+            let lastFrameTime = 0; // For controlling animation frames
+            let lastRenderTime = 0; // For controlling overall loop speed
+
+            function loop(timestamp) {
+                if (!lastRenderTime) lastRenderTime = timestamp;
+                const renderDelta = timestamp - lastRenderTime;
+                lastRenderTime = timestamp;
+
+                // Rotate the disc visual
+                rotation += 0.05; // Fixed rotation speed for visual effect
+
+                ctxSim.fillStyle = '#333';
+                ctxSim.fillRect(0,0, 500, 500);
+
+                ctxSim.save();
+                ctxSim.translate(250, 250);
+                
+                // Draw Spinning Disc (Blurred/Background)
+                ctxSim.save();
+                ctxSim.rotate(rotation);
+                ctxSim.scale(0.6, 0.6); // Fit in view
+                ctxSim.globalAlpha = 0.5; // Motion blur simulation
+                ctxSim.drawImage(offCanvas, -400, -400);
+                ctxSim.restore();
+
+                // Draw "Stabilized" View (What you see in the mirror)
+                if (state.processedFrames.length > 0) {
+                    const frameDuration = 1000 / fps; // milliseconds per frame
+
+                    if (timestamp - lastFrameTime > frameDuration) {
+                        lastFrameTime = timestamp;
+                    }
+                    
+                    const frameIndex = Math.floor(timestamp / frameDuration) % state.processedFrames.length;
+                    const img = state.processedFrames[frameIndex];
+                    
+                    ctxSim.beginPath();
+                    ctxSim.arc(0, -120, 80, 0, Math.PI*2); // Viewport at top
+                    ctxSim.strokeStyle = "white";
+                    ctxSim.lineWidth = 4;
+                    ctxSim.stroke();
+                    ctxSim.clip(); // Clip to the circle
+
+                    ctxSim.fillStyle = state.config.bgColor;
+                    ctxSim.fillRect(-100, -200, 200, 200); // Fill background behind image in reflection
+                    
+                    ctxSim.save();
+                    // Image is drawn at the top, adjusted for user's rotation and scale
+                    const simScaleFactor = 0.5 * (state.config.frameScale / 100) * state.config.scale; 
+                    const userRotRad = (state.config.rotation * Math.PI) / 180;
+                    
+                    ctxSim.translate(0, -120); // Position the image at the top
+                    ctxSim.rotate(userRotRad + Math.PI); // Counteract disc logic, +pi makes it upright
+                    ctxSim.scale(simScaleFactor, simScaleFactor);
+                    ctxSim.drawImage(img, -img.width/2, -img.height/2);
+                    ctxSim.restore();
+                }
+
+                ctxSim.restore();
+
+                state.animationId = requestAnimationFrame(loop);
+            }
+            
+            loop(0);
+        }
+
+        function stopSimulation() {
+            if (state.animationId) cancelAnimationFrame(state.animationId);
+        }
+
+        function downloadCanvas() {
+            if (state.processedFrames.length === 0) {
+                alert(translations[currentLang].uploadGifFirst);
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.download = 'phenakistoscope-disc.png';
+            link.href = discCanvas.toDataURL();
+            link.click();
+        }
+
+        // Initial Draw and Language Setup
+        updateLanguage();
+        drawDisc();
+
+    </script>
+</body>
+</html>
