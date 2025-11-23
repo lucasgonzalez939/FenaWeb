@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador de Fenaquistoscopio</title>
+    <title>FenaGIFtoscopio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- LibGif for parsing GIF frames --><script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
     <style>
@@ -93,7 +93,7 @@
     <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 z-10 h-16">
         <div class="flex items-center gap-2">
             <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">P</div>
-            <h1 class="text-base sm:text-lg font-semibold tracking-tight" data-i18n="title">Creador de Fenaquistoscopio</h1>
+            <h1 class="text-base sm:text-lg font-semibold tracking-tight" data-i18n="title">FenaGIFtoscopio</h1>
         </div>
         <div class="hidden lg:flex items-center gap-4">
             <div class="text-xs sm:text-sm text-slate-500">
@@ -241,6 +241,16 @@
                      </div>
                 </div>
 
+                <!-- Download Name -->
+                <div>
+                    <h3 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-3" data-i18n="downloadSettings">Configuración de Descarga</h3>
+                    <div class="space-y-2">
+                        <label class="block text-xs text-slate-600" data-i18n="fileName">Nombre del Archivo</label>
+                        <input type="text" id="input-filename" placeholder="mi-disco" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="fenagiftoscopio-disc">
+                        <p class="text-[10px] text-slate-400" data-i18n="fileNameDesc">Personaliza el nombre para identificar tu disco fácilmente.</p>
+                    </div>
+                </div>
+
             </div>
         </aside>
 
@@ -280,7 +290,7 @@
         // --- Translations ---
         const translations = {
             es: {
-                title: "Creador de Fenaquistoscopio",
+                title: "FenaGIFtoscopio",
                 workflow: "Subir GIF → Ajustar → Imprimir → Cortar Ranuras → Girar frente al Espejo",
                 downloadBtn: "Descargar Disco",
                 sourceAnimation: "Animación de Origen",
@@ -309,10 +319,13 @@
                 uploadGifFirst: "¡Por favor, sube un GIF primero!",
                 parsingGif: "Analizando cuadros del GIF...",
                 loadedFrames: "Cargados {count} cuadros.",
-                uploadPlaceholder: "Sube un GIF para generar el disco"
+                uploadPlaceholder: "Sube un GIF para generar el disco",
+                downloadSettings: "Configuración de Descarga",
+                fileName: "Nombre del Archivo",
+                fileNameDesc: "Personaliza el nombre para identificar tu disco fácilmente."
             },
             en: {
-                title: "Phenakistoscope Creator",
+                title: "FenaGIFtoscopio",
                 workflow: "Upload GIF → Adjust → Print → Cut Slits → Spin in Mirror",
                 downloadBtn: "Download Disc",
                 sourceAnimation: "Source Animation",
@@ -341,7 +354,10 @@
                 uploadGifFirst: "Please upload a GIF first!",
                 parsingGif: "Parsing GIF frames...",
                 loadedFrames: "Loaded {count} frames.",
-                uploadPlaceholder: "Upload a GIF to generate disc"
+                uploadPlaceholder: "Upload a GIF to generate disc",
+                downloadSettings: "Download Settings",
+                fileName: "File Name",
+                fileNameDesc: "Customize the name to easily identify your disc."
             }
         };
 
@@ -658,14 +674,18 @@
                 ctxDisc.rotate(angle);
 
                 // --- A. Draw Slit ---
-                // Slit is usually at the edge.
+                // Slit should be at the LEADING EDGE between frames
+                ctxDisc.save();
+                ctxDisc.rotate(anglePerSlot / 2); // Rotate to the edge between this frame and the next
+                
                 const slitW = state.config.slitWidth;
                 const slitL = state.config.slitLength * 4; // Multiplier for visibility
                 const slitStart = radius - slitL;
 
                 ctxDisc.fillStyle = '#000000';
-                // Align slit to the radial line
+                // Align slit to the edge between frames
                 ctxDisc.fillRect(-slitW/2, slitStart, slitW, slitL);
+                ctxDisc.restore();
 
                 // --- B. Draw Image ---
                 // We need to select the frame. 
@@ -809,8 +829,20 @@
                 return;
             }
             
+            // Get custom filename from input
+            const filenameInput = document.getElementById('input-filename');
+            let filename = filenameInput.value.trim();
+            
+            // Default to fenagiftoscopio-disc if empty
+            if (!filename) {
+                filename = 'fenagiftoscopio-disc';
+            }
+            
+            // Remove .png if user added it, we'll add it ourselves
+            filename = filename.replace(/\.png$/i, '');
+            
             const link = document.createElement('a');
-            link.download = 'phenakistoscope-disc.png';
+            link.download = filename + '.png';
             link.href = discCanvas.toDataURL();
             link.click();
         }
